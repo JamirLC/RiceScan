@@ -1,0 +1,20 @@
+#:kivy 2.3.0
+
+<CameraBox>:
+    orientation: 'vertical'
+
+    Label:
+        id: result_label
+        text: "Scan a rice sample"
+        size_hint_y: None
+        height: "50dp"
+
+    Image:
+        id: img
+        allow_stretch: True
+
+    Button:
+        text: "Capture Image"
+        size_hint_y: None
+        height: "50dp"
+        on_press: root.capture_image()
