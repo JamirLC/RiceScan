@@ -10,7 +10,7 @@ base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 2
 
 base_model.trainable = False #para hindi na magtrain
 
-x = base_model.ouput
+x = base_model.output
 x = Flatten()(x)
 x = Dense(128, activation='relu')(x)
 output_layer = Dense(num,  activation='softmax')(x)
