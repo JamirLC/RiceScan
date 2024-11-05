@@ -6,11 +6,14 @@ from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, GlobalAveragePo
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
-train_data_dir = 'dataset'
+train_data_dir = 'output_dataset/train'
+validation_data_dir = 'output_dataset/val'
+test_data_dir = 'outeput_dataset/test'
 img_width, img_height = 224, 224
 batch_size = 16
 train_datagen = ImageDataGenerator(rescale=1.0/255)
 val_datagen = ImageDataGenerator(rescale=1.0/255)
+test_datagen = ImageDataGenerator(rescale=1.0/255)
 
 train_generator = train_datagen.flow_from_directory(
     train_data_dir,
@@ -20,7 +23,14 @@ train_generator = train_datagen.flow_from_directory(
 )
 
 validation_generator = val_datagen.flow_from_directory(
-    train_data_dir,
+    validation_data_dir,
+    target_size=(img_width, img_height),
+    batch_size=batch_size,
+    class_mode='categorical'
+)
+
+test_generator = test_datagen.flow_from_directory(
+    test_data_dir,
     target_size=(img_width, img_height),
     batch_size=batch_size,
     class_mode='categorical',
@@ -62,3 +72,7 @@ history = model.fit(
 
 # MODEL SAVE
 model.save('rice_classifier_model.keras')
+
+# MODEL EVALUATION
+test_loss, test_acc = model.evaluate(test_generator)
+print(f'Test accuracy: {test_acc}')
