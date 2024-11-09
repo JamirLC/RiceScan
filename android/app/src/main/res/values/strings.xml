@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RiceScan</string>
+    <string name="title_activity_main">RiceScan</string>
+    <string name="package_name">com.ricescan.ricescanapp</string>
+    <string name="custom_url_scheme">com.ricescan.ricescanapp</string>
+</resources>

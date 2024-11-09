@@ -1,0 +1,6 @@
+{
+  "appId": "com.ricescan.ricescanapp",
+  "appName": "RiceScan",
+  "webDir": "ricescan-frontend/dist",
+  "bundledWebRuntime": false
+}
