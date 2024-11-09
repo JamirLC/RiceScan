@@ -13,6 +13,7 @@ base_model.trainable = False #para hindi na magtrain
 x = base_model.output
 x = Flatten()(x)
 x = Dense(128, activation='relu')(x)
+x = Dense(64, activation='relu')(x)
 output_layer = Dense(num,  activation='softmax')(x)
 
 model = Model(inputs=base_model.input, outputs=output_layer)
@@ -32,14 +33,14 @@ train_datagen = ImageDataGenerator(
 validation_datagen = ImageDataGenerator(rescale=1./255)
 
 train_generator = train_datagen.flow_from_directory(
-    r'C:\Users\Owner\Desktop\dataset', #local
+    '../dataset', #local
     target_size=(224, 224),
     batch_size=32,
     class_mode='categorical'
 )
 
 validation_generator = validation_datagen.flow_from_directory(
-    r'C:\Users\Owner\Desktop\dataset', #local
+    '../dataset', #local
     target_size=(224, 224),
     batch_size=32,
     class_mode='categorical'
@@ -55,3 +56,5 @@ history = model.fit(
 loss, accuracy = model.evaluate(validation_generator)
 print(f"Validation Loss: {loss}")
 print(f"Validation Accuracy: {accuracy}")
+
+#model.save('rice_classifier_model2.keras')

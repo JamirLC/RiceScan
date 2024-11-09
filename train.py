@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 
 train_data_dir = 'output_dataset/train'
 validation_data_dir = 'output_dataset/val'
-test_data_dir = 'outeput_dataset/test'
+test_data_dir = 'output_dataset/test'
 img_width, img_height = 224, 224
 batch_size = 16
 train_datagen = ImageDataGenerator(rescale=1.0/255)
