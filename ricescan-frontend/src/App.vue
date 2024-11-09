@@ -5,24 +5,24 @@
     </header>
 
     <main>
-      <!-- Video Stream Container -->
+      <!----- VIDEO STREAM -----> 
       <div class="video-container">
         <video ref="video" autoplay playsinline></video>
         <canvas ref="canvas" style="display: none;"></canvas>
       </div>
 
-      <!-- Controls for Capturing or Uploading an Image -->
+      <!----- CAPTURE & UPLOAD BUTTONS ----->
       <div class="controls">
         <button class="capture-btn" @click="captureImage">📷 Capture Image</button>
         <button class="upload-btn" @click="uploadImage">📁 Upload Image</button>
       </div>
 
-      <!-- Prediction Result -->
+      <!----- PREDICTION ----->
       <div class="result">
         <h2>{{ resultMessage }}</h2>
       </div>
 
-      <!-- File Upload Section (optional for fallback) -->
+      <!----- FILE UPLOAD SECTION ----->
       <div v-if="image" class="upload-section">
         <input type="file" @change="handleFileUpload" />
         <button @click="predictRiceType">Predict Rice Type</button>
@@ -35,6 +35,8 @@
 
 <script>
 import axios from 'axios';
+// import { Camera } from '@capacitor/camera';  // USE THIS IF USING CAPACITOR
+import { Permissions } from '@capacitor/core';
 
 export default {
   data() {
@@ -44,206 +46,252 @@ export default {
       image: null,
       predictedClass: null,
       errorMessage: null,
-      riceClasses: [],  // Store rice classes dynamically
+      riceClasses: [],
       cameraErrorMessage: null,
     };
   },
+
+  ///// METHODS /////
   methods: {
-    async initCamera() {
+  
+  ///// CAMERA FOR WEB /////
+  async initCamera() {
+    // WEB PERMISSION (CAMERA)
+    if (navigator.mediaDevices) {
       try {
-        this.videoStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
-        this.$refs.video.srcObject = this.videoStream;
-        this.$refs.video.play();
+        await this.setupCamera();
       } catch (error) {
         console.error("Error accessing camera:", error);
         this.cameraErrorMessage = "Unable to access camera. Please check permissions.";
       }
-    },
+    } else {
+      this.cameraErrorMessage = "Camera API is not supported in this browser.";
+    }
+  },
+
+  ///// CHECK CAMERA /////
+  async setupCamera() {
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+
+     // VIDEO CAM STREAM //
+     this.$refs.video.srcObject = videoStream;
+     this.$refs.video.play();
     
-    async captureImage() {
-      const video = this.$refs.video;
-      const canvas = this.$refs.canvas;
-      const context = canvas.getContext("2d");
+    } catch (error) {
+     console.error("Error accessing camera:", error);
+     this.cameraErrorMessage = "Unable to access camera. Please check permissions.";
+    }
+  },
 
-      // Set canvas size to match video stream size
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+  isMobileDevice() {
+    return /Mobi|Android/i.test(navigator.userAgent);
+  },
 
-      // Draw the current frame from video to canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ///// CAMERA PERMISSION (MOBILE) /////
+  async requestMobileCameraPermission() {
+    const permission = await Permissions.request({ name: 'camera' });
 
-      // Convert canvas to a base64-encoded image (JPEG format)
-      const imageData = canvas.toDataURL('image/jpeg');  // You can also use 'image/png' if needed
+    if (permission.granted) {
+      this.setupCamera();
+    } else {
+      this.cameraErrorMessage = "Camera permission denied. Please allow access.";
+    }
+  },
 
-      // Convert base64 string to a file object
-      const formData = new FormData();
-      formData.append("image", this.dataURLtoFile(imageData, "captured_image.jpg"));
+  ///// UPLOAD DATA URL /////
+  dataURLtoFile(dataURL, filename) {
+    if (!dataURL || !dataURL.includes(',')) {
+      console.error("Invalid or empty base64 string.");
+      return null;
+    }
 
-      // Send the image to the server
-      try {
-        const response = await axios.post("http://127.0.0.1:5000/classify-rice", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        
-        console.log("Backend Response:", response.data);  // Handle server response (e.g., classification result)
-        const result = response.data.result;
+    const [header, base64Data] = dataURL.split(',');
+    
+    if (!base64Data) {
+      console.error("Base64 data is missing.");
+      return null;
+    }
+    const mimeType = header.match(/:(.*?);/)[1];
+    const binaryString = atob(base64Data);
+    const length = binaryString.length;
+    const arrayBuffer = new ArrayBuffer(length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    for (let i = 0; i < length; i++) {
+      uint8Array[i] = binaryString.charCodeAt(i);
+    }
 
-        if (result === "Rice type cannot be classified") {
-          this.resultMessage = result;  // Display the fallback message
-        } else {
-          this.predictedClass = result;  // Display the predicted rice type
-          this.resultMessage = `Predicted Rice Type: ${this.predictedClass}`; // Show result on the page
-        }
+    return new File([arrayBuffer], filename, { type: mimeType });
+  },
 
-        this.errorMessage = null;
-      } catch (error) {
-        console.error("Error uploading image:", error);
-        this.errorMessage = "Failed to upload and classify the image.";
-      }
-    },
+  ///// IMAGE CAPTURING /////
+  async captureImage() {
+    const canvas = this.$refs.canvas;
+    const video = this.$refs.video;
+    const context = canvas.getContext("2d");
+    const dataURL = canvas.toDataURL("image/jpeg");
+    const imageFile = this.dataURLtoFile(dataURL, "captured-image.jpg");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Helper function to convert base64 string to a file object
-    dataURLtoFile(dataURL, filename) {
-      const [header, base64Data] = dataURL.split(',');
-      const mimeType = header.match(/:(.*?);/)[1];  // Extract MIME type (e.g., image/jpeg)
-      const binaryString = atob(base64Data);
-      const length = binaryString.length;
-      const arrayBuffer = new ArrayBuffer(length);
-      const uint8Array = new Uint8Array(arrayBuffer);
+    if (imageFile) {
+       const formData = new FormData();
+       formData.append("image", imageFile);
 
-      // Convert base64 string to binary data
-      for (let i = 0; i < length; i++) {
-        uint8Array[i] = binaryString.charCodeAt(i);
-      }
+       try {
+        console.log("Sending image to backend...");
 
-      return new File([arrayBuffer], filename, { type: mimeType });
-    },
-
-    async uploadImage() {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.onchange = async (event) => {
-        const file = event.target.files[0];
-        if (file) {
-          const imageBitmap = await createImageBitmap(file);
-          const canvas = this.$refs.canvas;
-          const context = canvas.getContext("2d");
-
-          canvas.width = imageBitmap.width;
-          canvas.height = imageBitmap.height;
-          context.drawImage(imageBitmap, 0, 0);
-
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          this.processImage(imageData);
-        }
-      };
-      input.click();
-    },
-
-    async processImage(imageData) {
-      try {
-        const resized = this.resizeImage(imageData);
-        this.sendImageForPrediction(resized);
-      } catch (error) {
-        console.error("Error processing image:", error);
-        this.resultMessage = "Failed to process image.";
-      }
-    },
-
-    resizeImage(imageData) {
-      const canvas = this.$refs.canvas;
-      const context = canvas.getContext("2d");
-      canvas.width = 224;
-      canvas.height = 224;
-      context.putImageData(imageData, 0, 0);
-      return canvas.toDataURL("image/jpeg");
-    },
-
-    async sendImageForPrediction(imageBase64) {
-      const formData = new FormData();
-      formData.append("image", imageBase64);
-
-      try {
         const response = await axios.post("http://localhost:5000/classify-rice", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: {
+          "Content-Type": "multipart/form-data",
+          },
         });
-        const result = response.data.result;
 
+        const result = response.data.result;
+        console.log("Prediction result:", result);
+
+         // DISPLAYS RESULTS ON FRONT-END
         if (result === "Rice type cannot be classified") {
-          this.resultMessage = result;  // Display fallback message
+          this.resultMessage = "Cannot identify rice.";
         } else {
           this.predictedClass = result;
           this.resultMessage = `Predicted Rice Type: ${this.predictedClass}`;
         }
       } catch (error) {
-        console.error(error);
+        console.error("Error during prediction:", error);
         this.errorMessage = "Failed to classify the rice. Please try again.";
       }
-    },
-
-    //GET RICE CLASS
-    async getRiceClasses() {
-      try {
-        const response = await axios.get("http://localhost:5000/get-rice-classes");
-        this.riceClasses = response.data;
-      } catch (error) {
-        console.error("Error fetching rice classes:", error);
-        this.riceClasses = [];
-      }
-    },
-
-    handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (file) {
-        this.image = file;
-      }
-    },
-
-    async predictRiceType() {
-      if (!this.image) {
-        this.errorMessage = "Please upload an image.";
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("image", this.image);
-
-      try {
-        const response = await axios.post("http://127.0.0.1:5000/classify-rice", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        // Log the backend response for debugging
-        console.log("Backend Response:", response.data);
-
-        const result = response.data.result;
-
-        if (result === "Rice type cannot be classified") {
-          this.resultMessage = result;  // Display the fallback message
-        } else {
-          this.predictedClass = result;  // Display the predicted rice type
-          this.resultMessage = `Predicted Rice Type: ${this.predictedClass}`; // Show result on the page
-        }
-
-        this.errorMessage = null;
-      } catch (error) {
-        console.error(error);
-        this.errorMessage = "Failed to classify the rice. Please try again.";
-      }
-    },
-  },
-  async mounted() {
-    await this.getRiceClasses();
-    await this.initCamera();
-  },
-  beforeUnmount() {
-    if (this.videoStream) {
-      this.videoStream.getTracks().forEach((track) => track.stop());
+    } else {
+      console.error("Failed to capture image.");
     }
   },
+
+  ///// PREDICT RICE /////
+  async uploadImage() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const imageBitmap = await createImageBitmap(file);
+        const canvas = this.$refs.canvas;
+        const context = canvas.getContext("2d");
+        canvas.width = imageBitmap.width;
+        canvas.height = imageBitmap.height;
+        context.drawImage(imageBitmap, 0, 0);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        this.processImage(imageData);
+      }
+    };
+    input.click();
+  },
+
+  ///// IMAGE PROCESSING /////
+  async processImage(imageData) {
+    try {
+      const resized = this.resizeImage(imageData);
+      await this.sendImageForPrediction(resized);
+    } catch (error) {
+      console.error("Error processing image:", error);
+      this.resultMessage = "Failed to process image.";
+    }
+  },
+
+  resizeImage(imageData) {
+    const canvas = this.$refs.canvas;
+    const context = canvas.getContext("2d");
+    canvas.width = 224;
+    canvas.height = 224;
+    context.putImageData(imageData, 0, 0);
+    return canvas.toDataURL("image/jpeg");
+  },
+
+  ///// IMAGE PREDICTION PROCESSOR /////
+  async sendImageForPrediction(imageBase64) {
+    const formData = new FormData();
+    formData.append("image", imageBase64);
+    try {
+      const response = await axios.post("http://localhost:5000/classify-rice", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const result = response.data.result;
+
+      if (result === "Rice type cannot be classified") {
+        this.resultMessage = "Cannot identify rice.";
+      } else {
+        this.predictedClass = result;
+        this.resultMessage = `Predicted Rice Type: ${this.predictedClass}`;
+      }
+    } catch (error) {
+      console.error(error);
+      this.errorMessage = "Failed to classify the rice. Please try again.";
+    }
+  },
+
+  ///// GET RICE TYPE /////
+  async getRiceClasses() {
+    try {
+      const response = await axios.get("http://localhost:5000/get-rice-classes");
+      this.riceClasses = response.data;
+    } catch (error) {
+      console.error("Error fetching rice classes:", error);
+      this.riceClasses = [];
+    }
+  },
+
+  ///// FILE UPLOAD /////
+  handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+      this.image = file;
+    }
+  },
+
+  ///// PREDICT RICE /////
+  async predictRiceType() {
+    if (!this.image) {
+      this.errorMessage = "Please upload an image.";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", this.image);
+
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/classify-rice", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      
+      // LOG SCRIPT
+      console.log("Backend Response:", response.data);
+
+      const result = response.data.result;
+
+      if (result === "Rice type cannot be classified") {
+        this.resultMessage = result; 
+      } else {
+        this.predictedClass = result;  // PREDICTED RICE RESULTS
+        this.resultMessage = `Predicted Rice Type: ${this.predictedClass}`;
+      }
+
+      this.errorMessage = null;
+      } catch (error) {
+        console.error("Error uploading and classifying image:", error);
+        this.errorMessage = "Failed to upload and classify the image.";
+      }
+    },
+  },
+
+  mounted() {
+    this.initCamera();
+    this.getRiceClasses();
+  }
 };
 </script>
 
@@ -297,7 +345,7 @@ video {
 }
 
 button {
-  width: 85%; /* Adjust button width for mobile */
+  width: 85%;
   max-width: 240px;
   margin: 10px auto;
   padding: 12px;

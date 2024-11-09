@@ -45,7 +45,7 @@ model = Sequential([
     MaxPooling2D(pool_size=(2, 2)),
     Conv2D(128, (3, 3), activation='relu'),
     MaxPooling2D(pool_size=(2, 2)),
-    GlobalAveragePooling2D(),  # Replaces Flatten and adapts to any shape
+    GlobalAveragePooling2D(),
     Dense(128, activation='relu'),
     Dense(len(train_generator.class_indices), activation='softmax')
 ])
