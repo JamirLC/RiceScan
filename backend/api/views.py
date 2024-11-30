@@ -7,8 +7,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
 # Define paths for the model and dataset
-MODEL_PATH = r'C:\Users\gmvicta\Desktop\Rice Scan\rice_classifier_model.keras'
-DATASET_PATH = r'C:\Users\gmvicta\Desktop\Rice Scan\augmentation'
+MODEL_PATH = r'D:\VSCODE\RiceScan\rice_classifier_model.keras'
+DATASET_PATH = r'D:\VSCODE\RiceScan\augmentation'
 
 # Load the model once when the server starts
 model = tf.keras.models.load_model(MODEL_PATH)

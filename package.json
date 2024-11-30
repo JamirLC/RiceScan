@@ -12,6 +12,11 @@
   "dependencies": {
     "@capacitor/camera": "^6.1.0",
     "@capacitor/cli": "^6.1.2",
-    "@capacitor/core": "^6.1.2"
+    "@capacitor/core": "^6.1.2",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "vite-plugin-mkcert": "^1.17.6"
   }
 }
